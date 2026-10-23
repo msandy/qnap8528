@@ -547,6 +547,20 @@ static ssize_t blink_bicolor_store(struct device *dev, struct device_attribute *
 	return ret ? ret : count;
 }
 
+/* Returns the status LED EC value that blinks the color selected by brightness */
+static u8 qnap8528_led_status_blink_value(unsigned int brightness)
+{
+	switch (brightness) {
+	case 2:
+	case 4:
+		return 4;
+	case 5:
+		return 5;
+	default:
+		return 3;
+	}
+}
+
 static int qnap8528_led_status_set(struct led_classdev *cdev, enum led_brightness brightness)
 {
 	struct qnap8528_system_led *sled = container_of(cdev, struct qnap8528_system_led, cdev);
@@ -559,9 +573,10 @@ static int qnap8528_led_status_set(struct led_classdev *cdev, enum led_brightnes
 			return 0;
 	}
 
+	/* Brightness values match the EC: 1/2 green/red, 3/4 green/red blink, 5 alternating */
 	if (brightness) {
 		if(sled->is_hw_blink)
-			qnap8528_ec_write(QNAP8528_LED_STATUS_REG, brightness  == 1 ? 3 : 4);
+			qnap8528_ec_write(QNAP8528_LED_STATUS_REG, qnap8528_led_status_blink_value(brightness));
 		else
 			qnap8528_ec_write(QNAP8528_LED_STATUS_REG, brightness);
 	} else {
@@ -581,11 +596,7 @@ static int qnap8528_led_status_blink(struct led_classdev *cdev, unsigned long *d
 		return -EINVAL;
 	
 	sled->is_hw_blink = true;
-
-	if (cdev->brightness == 2)
-		qnap8528_ec_write(QNAP8528_LED_STATUS_REG, 4);
-	else
-		qnap8528_ec_write(QNAP8528_LED_STATUS_REG, 3);
+	qnap8528_ec_write(QNAP8528_LED_STATUS_REG, qnap8528_led_status_blink_value(cdev->brightness));
 
 	return 0;
 }
@@ -764,7 +775,7 @@ static int qnap8528_register_leds(struct device *dev)
 	/* Just allocate them all synamically?  */
 	if (data->config->features.led_status) {
 		data->led_status.cdev.name = DRVNAME "::status";
-		data->led_status.cdev.max_brightness = 2;
+		data->led_status.cdev.max_brightness = 5;
 		data->led_status.cdev.brightness_set_blocking = qnap8528_led_status_set;
 		data->led_status.cdev.blink_set = qnap8528_blink_sw_only ? NULL : qnap8528_led_status_blink;
 		devm_led_classdev_register(dev, &data->led_status.cdev);
