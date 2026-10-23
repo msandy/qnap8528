@@ -647,8 +647,12 @@ static int qnap8528_led_slot_set(struct led_classdev *cdev,	enum led_brightness 
 	if (qnap8528_preserve_leds && (cdev->flags & LED_UNREGISTERING))
 		return 0;
 
-	/* Level 3 is the EC's green blink (ACTIVE), which needs PRESENT on */
-	if (brightness == 3 && !(sled->slot_cfg->has_present && sled->slot_cfg->has_active))
+	/*
+	 * Level 3 is the EC's green blink (ACTIVE), which needs PRESENT on and
+	 * doesn't show on slots whose green LED shows disk activity in hardware.
+	 */
+	if (brightness == 3 && !(sled->slot_cfg->has_present && sled->slot_cfg->has_active &&
+				 !sled->slot_cfg->has_hw_activity))
 		return -EOPNOTSUPP;
 
 	/*
@@ -846,7 +850,8 @@ static int qnap8528_register_leds(struct device *dev)
 				return -ENOMEM;
 			sled->led_cdev.max_brightness = (slots[i].has_present && slots[i].has_active) ? 3 : 2;
 			sled->led_cdev.brightness_set_blocking = qnap8528_led_slot_set;
-			sled->led_cdev.blink_set = (slots[i].has_present && slots[i].has_active && !qnap8528_blink_sw_only) ? qnap8528_led_slot_blink : NULL;
+			sled->led_cdev.blink_set = (slots[i].has_present && slots[i].has_active && !slots[i].has_hw_activity &&
+						    !qnap8528_blink_sw_only) ? qnap8528_led_slot_blink : NULL;
 			sled->pdev = dev;
 			devm_led_classdev_register(dev, &sled->led_cdev);
 

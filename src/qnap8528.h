@@ -163,6 +163,8 @@ struct qnap8528_features {
  * *@has_error          Has error (static red) LED feature.
  * *@has_locate         Has locate (blinking red) LED feature.
  * *@has_power_ctrl     Flag if slot disk power can be toggled.
+ * *@has_hw_activity    The slot's green LED shows disk activity in hardware, which hides
+						the active (blinking green) LED feature.
  */
 struct qnap8528_slot_config {
 	char *name;
@@ -172,6 +174,7 @@ struct qnap8528_slot_config {
 	u8 has_error:1;
 	u8 has_locate:1;
 	u8 has_power_ctrl:1;
+	u8 has_hw_activity:1;
 };
 
 /*
@@ -1297,12 +1300,12 @@ static struct qnap8528_config qnap8528_configs[] = {
 		.slots = (struct qnap8528_slot_config[]){
 			{ .name = "m2ssd1", .ec_index = 9, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1},
 			{ .name = "m2ssd2", .ec_index = 10, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1},
-			{ .name = "hdd1", .ec_index = 1, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1},
-			{ .name = "hdd2", .ec_index = 2, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1},
-			{ .name = "hdd3", .ec_index = 3, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1},
-			{ .name = "hdd4", .ec_index = 4, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1},
-			{ .name = "hdd5", .ec_index = 5, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1},
-			{ .name = "hdd6", .ec_index = 6, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1},
+			{ .name = "hdd1", .ec_index = 1, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1, .has_hw_activity = 1},
+			{ .name = "hdd2", .ec_index = 2, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1, .has_hw_activity = 1},
+			{ .name = "hdd3", .ec_index = 3, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1, .has_hw_activity = 1},
+			{ .name = "hdd4", .ec_index = 4, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1, .has_hw_activity = 1},
+			{ .name = "hdd5", .ec_index = 5, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1, .has_hw_activity = 1},
+			{ .name = "hdd6", .ec_index = 6, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1, .has_hw_activity = 1},
 			{ .name = "hdd7", .ec_index = 7, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1},
 			{ .name = "hdd8", .ec_index = 8, .has_present = 1, .has_active = 1, .has_error = 1, .has_locate = 1},
 			{ NULL }
