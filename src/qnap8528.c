@@ -664,8 +664,6 @@ static int qnap8528_led_slot_set(struct led_classdev *cdev,	enum led_brightness 
 	if (sled->is_hw_blink || sled->blink_may_be_on) {
 		if (sled->slot_cfg->has_active)
 			qnap8528_ec_write(EC_LED_DISK_ACTIVE_OFF_REG, sled->slot_cfg->ec_index);
-		if (sled->slot_cfg->has_locate)
-			qnap8528_ec_write(EC_LED_DISK_LOCATE_OFF_REG, sled->slot_cfg->ec_index);
 		sled->blink_may_be_on = false;
 	}
 
@@ -695,12 +693,9 @@ static int qnap8528_led_slot_set(struct led_classdev *cdev,	enum led_brightness 
 		}
 		__attribute__((__fallthrough__));
 	case 2:
-		/* Turn on error LED and blink if state was blinking */
+		/* Turn on error LED */
 		if (sled->slot_cfg->has_error)
 			qnap8528_ec_write(EC_LED_DISK_ERROR_ON_REG, sled->slot_cfg->ec_index);
-		
-		if (sled->is_hw_blink && sled->slot_cfg->has_locate)
-			qnap8528_ec_write(EC_LED_DISK_LOCATE_ON_REG, sled->slot_cfg->ec_index);
 		break;
 	case 3:
 		qnap8528_ec_write(EC_LED_DISK_PRESENT_ON_REG, sled->slot_cfg->ec_index);
@@ -720,21 +715,25 @@ static int qnap8528_led_slot_blink(struct led_classdev *cdev, unsigned long *del
 	if (!(*delay_on == 0 && *delay_off == 0) && (*delay_on < 80 || *delay_on > 140 || *delay_off < 80 || *delay_off > 140))
 		return -EINVAL;
 
+	/* The EC only blinks green; red blinks in software */
+	if (sled->led_cdev.brightness == 2)
+		return -EINVAL;
+
 	sled->is_hw_blink = true;
+	qnap8528_ec_write(EC_LED_DISK_PRESENT_ON_REG, sled->slot_cfg->ec_index);
+	qnap8528_ec_write(EC_LED_DISK_ACTIVE_ON_REG, sled->slot_cfg->ec_index);
+	return 0;
+}
 
-	if ((sled->led_cdev.brightness == 2) && sled->slot_cfg->has_locate) {
-		qnap8528_ec_write(EC_LED_DISK_ACTIVE_OFF_REG, sled->slot_cfg->ec_index);
-		qnap8528_ec_write(EC_LED_DISK_LOCATE_ON_REG, sled->slot_cfg->ec_index);
-		return 0;
-	} else if (sled->slot_cfg->has_active) {
-		qnap8528_ec_write(EC_LED_DISK_LOCATE_OFF_REG, sled->slot_cfg->ec_index);
-		qnap8528_ec_write(EC_LED_DISK_PRESENT_ON_REG, sled->slot_cfg->ec_index);
-		qnap8528_ec_write(EC_LED_DISK_ACTIVE_ON_REG, sled->slot_cfg->ec_index);
-		return 0;
-	}
+static int qnap8528_led_slot_locate_set(struct led_classdev *cdev, enum led_brightness brightness)
+{
+	struct qnap8528_slot_led *sled = container_of(cdev, struct qnap8528_slot_led, locate_cdev);
 
-	sled->is_hw_blink = false;
-	return -EINVAL;
+	if (qnap8528_preserve_leds && (cdev->flags & LED_UNREGISTERING))
+		return 0;
+
+	return qnap8528_ec_write(brightness ? EC_LED_DISK_LOCATE_ON_REG : EC_LED_DISK_LOCATE_OFF_REG,
+				 sled->slot_cfg->ec_index);
 }
 
 static int qnap8528_led_panel_brightness_set(struct led_classdev *cdev, enum led_brightness brightness)
@@ -847,9 +846,18 @@ static int qnap8528_register_leds(struct device *dev)
 				return -ENOMEM;
 			sled->led_cdev.max_brightness = (slots[i].has_present && slots[i].has_active) ? 3 : 2;
 			sled->led_cdev.brightness_set_blocking = qnap8528_led_slot_set;
-			sled->led_cdev.blink_set = ((slots[i].has_active || slots[i].has_locate) && !qnap8528_blink_sw_only) ? qnap8528_led_slot_blink : NULL;
+			sled->led_cdev.blink_set = (slots[i].has_present && slots[i].has_active && !qnap8528_blink_sw_only) ? qnap8528_led_slot_blink : NULL;
 			sled->pdev = dev;
 			devm_led_classdev_register(dev, &sled->led_cdev);
+
+			if (slots[i].has_locate) {
+				sled->locate_cdev.name = devm_kasprintf(dev, GFP_KERNEL, DRVNAME "::%s-locate", slots[i].name);
+				if (!sled->locate_cdev.name)
+					return -ENOMEM;
+				sled->locate_cdev.max_brightness = 1;
+				sled->locate_cdev.brightness_set_blocking = qnap8528_led_slot_locate_set;
+				devm_led_classdev_register(dev, &sled->locate_cdev);
+			}
 		}
 	}
 	pr_info("LED devices registered");
