@@ -647,6 +647,10 @@ static int qnap8528_led_slot_set(struct led_classdev *cdev,	enum led_brightness 
 	if (qnap8528_preserve_leds && (cdev->flags & LED_UNREGISTERING))
 		return 0;
 
+	/* Level 3 is the EC's green blink (ACTIVE), which needs PRESENT on */
+	if (brightness == 3 && !(sled->slot_cfg->has_present && sled->slot_cfg->has_active))
+		return -EOPNOTSUPP;
+
 	/*
 	 * Here comes a lot of logic, this might be unnecessary and writing to non-existent
 	 * LED EC register is OK, but we dont know that, so let's start branching like crazy.
@@ -697,6 +701,11 @@ static int qnap8528_led_slot_set(struct led_classdev *cdev,	enum led_brightness 
 		
 		if (sled->is_hw_blink && sled->slot_cfg->has_locate)
 			qnap8528_ec_write(EC_LED_DISK_LOCATE_ON_REG, sled->slot_cfg->ec_index);
+		break;
+	case 3:
+		qnap8528_ec_write(EC_LED_DISK_PRESENT_ON_REG, sled->slot_cfg->ec_index);
+		qnap8528_ec_write(EC_LED_DISK_ACTIVE_ON_REG, sled->slot_cfg->ec_index);
+		sled->blink_may_be_on = true;
 		break;
 	}
 
@@ -836,7 +845,7 @@ static int qnap8528_register_leds(struct device *dev)
 			sled->led_cdev.name = devm_kasprintf(dev, GFP_KERNEL, DRVNAME "::%s", slots[i].name);
 			if (!sled->led_cdev.name)
 				return -ENOMEM;
-			sled->led_cdev.max_brightness = 2;
+			sled->led_cdev.max_brightness = (slots[i].has_present && slots[i].has_active) ? 3 : 2;
 			sled->led_cdev.brightness_set_blocking = qnap8528_led_slot_set;
 			sled->led_cdev.blink_set = ((slots[i].has_active || slots[i].has_locate) && !qnap8528_blink_sw_only) ? qnap8528_led_slot_blink : NULL;
 			sled->pdev = dev;
