@@ -404,7 +404,8 @@ static ssize_t qnap8528_power_recovery_attr_store(struct device *dev, struct dev
 
 static ssize_t qnap8528_eup_mode_attr_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	u8 ret, val;
+	int ret;
+	u8 val;
 
 	ret = qnap8528_ec_read(QNAP8528_EUP_SUPPORT_REG, &val);
 	if (ret)
