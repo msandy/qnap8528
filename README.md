@@ -233,15 +233,15 @@ If an LED has multiple color, the blink color can be controlled by setting the c
 Following is a list of supported leds (without the `qnap8528::` prefix):
 |Name|Device Name|Brightness Values|Notes
 |-|-|-|-
-|Status|`status`|`0`,`1`,`2` for Off, On Green, On Red| Support blink, see note below
-|USB|`usb`|`0`,`1` for Off, On (Blue)| Support blink
+|Status|`status`|`0`-`5` for Off, Green, Red, Green Blink, Red Blink, Alternating Green/Red| Support blink, see note below
+|USB|`usb`|`0`,`1`,`2` for Off, Blink, On (Blue)| Support blink
 |Enclosure Identification|`ident`|`0`,`1` for Off, On (Flashing Green/Red) | Overrides all disk LEDs until disabled
 |JBOD Expansion|`jbod`|`0`,`1` for Off, On (Orange?/Blue)|
 |10GbE Expansion|`10GbE`|`0`,`1` for Off, On (Green?)|
 |Panel Brightness|`panel_brightness`|`0`-`100` for Off, Max Brightness| Affects all LEDs
 
 ***Status LED Note***\
-The status LED is a special case where it can blink red and green in an alternating pattern, a special attribute `blink_bicolor` is created (if hardware blink was not disabled) which when written to with any value (except an empty string) will set the the *Status* LEDs into the green-red blinking pattern. To disable this, set the brightness of the LED to anything else.
+The status LED is a special case where it can blink red and green in an alternating pattern (brightness `5`). For compatibility, a special attribute `blink_bicolor` is also created (if hardware blink was not disabled) which when written to with any value (except an empty string) will set the the *Status* LEDs into the green-red blinking pattern. To disable this, set the brightness of the LED to anything else.
 
 **Why not use separate LED devices for each color?**\
 Since the LEDs are either ON or OFF and colors cannot be mixed, a design choice was made that each LED is represented by a single kernel LED device, this not just cuts down on the number of LED entries created in the `/sys/class/leds` directory (especially when having 2 LEDs per disk), but it also makes it easier to keep track of the states of two connected LEDs more manageable.
@@ -257,6 +257,19 @@ The disk slot LEDs are controlled in a similar way to the system *Status* LED, w
 |M.2 SSD X| `m2ssdX`
 |U.2 SSD X| `u2ssdX`
 
+Slot LED brightness values:
+
+|Value|State
+|-|-
+|`0`|Off
+|`1`|Green
+|`2`|Red
+|`3`|Green blink by the EC (not on slots that show disk activity in hardware, see below)
+
+Slots with a locate feature also get a separate locate LED named after the slot with a `-locate` suffix (e.g. `hdd1-locate`). Writing `1` turns on the slot's locate blink (amber on *TS-873A* bays, red on its M.2 LEDs) without changing the slot's own color, which shows again after writing `0`.
+
+When a slot LED blinks with a trigger such as `timer`, green uses the EC's blink where available, while red and slots that show disk activity in hardware blink in software.
+
 Apart from that, there are a few other notes about disk slot LEDs for various device models:
 
 **Disk slots don't always have LEDs**\
@@ -267,6 +280,8 @@ Some devices, such as the *TS-873AEU* do not have a green LEDs for the disks (th
 
 **Disk slot drive activity blinking**\
 Some devices (such as the *TS-473A*) blink the green disk slot LED to indicate the disk is being accessed, however, due to the architecture of the backplane, this "works out-of-the-box" behavior only works for some of the disk drives (on my NAS, disks 1 and 2, and disks 3 and 4 stay static green), unfortunately there is no known way (to me, currently) to disable this blinking if it's unwanted, the blinking will happen no matter the value set to activity blink register in the EC. However, the activity blinking is effected by turning the green LED off completely.
+
+On the *TS-873A*, bays 1 to 6 (on the ASMedia SATA controller) show disk activity on the green LED whenever it's on, and an empty one of these bays blinks green; bays 7 and 8 don't show activity. The module marks bays 1 to 6 so brightness `3` is rejected there, since the EC's green blink doesn't show. To keep empty bays dark, set their brightness to `0`.
 
 
 ### Possible Future Feature
