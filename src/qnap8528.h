@@ -198,6 +198,7 @@ struct qnap8528_slot_led {
 	struct qnap8528_slot_config *slot_cfg;
 	struct device *pdev;
 	bool is_hw_blink;
+	bool blink_may_be_on;
 };
 
 struct qnap8528_system_led {

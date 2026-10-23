@@ -640,12 +640,17 @@ static int qnap8528_led_slot_set(struct led_classdev *cdev,	enum led_brightness 
 	 * LED EC register is OK, but we dont know that, so let's start branching like crazy.
 	 */ 
 
-	/* Start with a clean state, disable all LED states */
-	if (sled->is_hw_blink) {
+	/*
+	 * Start with a clean state, disable all LED states.
+	 * The EC can still hold blink state from before probe (e.g. after an unload
+	 * with preserve_leds), so also clear it on the first update after probe.
+	 */
+	if (sled->is_hw_blink || sled->blink_may_be_on) {
 		if (sled->slot_cfg->has_active)
 			qnap8528_ec_write(EC_LED_DISK_ACTIVE_OFF_REG, sled->slot_cfg->ec_index);
 		if (sled->slot_cfg->has_locate)
 			qnap8528_ec_write(EC_LED_DISK_LOCATE_OFF_REG, sled->slot_cfg->ec_index);
+		sled->blink_may_be_on = false;
 	}
 
 	if (sled->slot_cfg->has_present)
@@ -815,6 +820,7 @@ static int qnap8528_register_leds(struct device *dev)
 			if (!sled)
 				return -ENOMEM;
 			sled->slot_cfg = &slots[i];
+			sled->blink_may_be_on = true;
 			sled->led_cdev.name = devm_kasprintf(dev, GFP_KERNEL, DRVNAME "::%s", slots[i].name);
 			if (!sled->led_cdev.name)
 				return -ENOMEM;
