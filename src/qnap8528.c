@@ -605,7 +605,8 @@ static int qnap8528_led_usb_set(struct led_classdev *cdev, enum led_brightness b
 {
 	if (qnap8528_preserve_leds && (cdev->flags & LED_UNREGISTERING))
 		return 0;
-	return qnap8528_ec_write(QNAP8528_LED_USB_REG, brightness ? 2 : 0);
+	/* Brightness values match the EC: 0 off, 1 blink, 2 on */
+	return qnap8528_ec_write(QNAP8528_LED_USB_REG, brightness);
 }
 
 static int qnap8528_led_usb_blink(struct led_classdev *cdev, unsigned long *delay_on, unsigned long *delay_off)
@@ -786,7 +787,7 @@ static int qnap8528_register_leds(struct device *dev)
 
 	if (data->config->features.led_usb) {
 		data->led_usb.cdev.name = DRVNAME "::usb";
-		data->led_usb.cdev.max_brightness = 1;
+		data->led_usb.cdev.max_brightness = 2;
 		data->led_usb.cdev.brightness_set_blocking = qnap8528_led_usb_set;
 		data->led_usb.cdev.blink_set = qnap8528_blink_sw_only ? NULL : qnap8528_led_usb_blink;
 		devm_led_classdev_register(dev, &data->led_usb.cdev);
