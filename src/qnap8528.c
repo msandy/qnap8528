@@ -745,7 +745,7 @@ static int qnap8528_led_panel_brightness_set(struct led_classdev *cdev, enum led
 	ret = qnap8528_ec_read(0x245, &tmp);
 	if (ret)
 		return ret;
-	tmp |= 0xef;
+	tmp &= ~0x10;
 
 	ret = qnap8528_ec_write(0x245, tmp);
 	if (ret)
